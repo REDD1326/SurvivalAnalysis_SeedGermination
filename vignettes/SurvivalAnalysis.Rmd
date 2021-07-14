@@ -1,0 +1,108 @@
+---
+title: "Survival Analysis"
+author: "Ruth Delgado-Dávila"
+output: html_document
+---
+
+```{r warning=FALSE, include=FALSE}
+library(tidyverse)
+library(survival) # Surv function
+library(flexsurvcure) # flexsurvcure function
+library(cmprsk) # cuminc function
+library(survminer) # ggcompetingrisks function
+```
+
+This document show how to analyze the **time to seed germination** using **Survival Analysis**. The data used here correspond to seeds of 38 plants of *Ipomoea hederacea* (Convolvulaceae) obtained after the aplication of the following experiments: 
+
+* Hand-self pollination: flowers were manually pollinated with pollen from the two longest anthers of the flower.\medskip
+* Hand-cross pollination: emasculated flowers were manually pollinated with pollen obtained from the two longest anthers of two-three donor plants.  
+
+# Data
+```{r echo=TRUE}
+germination <- read.table("../data/germination.csv", header = TRUE, sep = ",")
+head(germination)
+```
+
+# Plotting cumulative incidence by treatment 
+
+```{r}
+# Calculate the cumulative germination between treatments
+g12 <- filter(germination, year == "2012")
+cum_g12 <- cuminc(
+  g12$day, 
+  g12$germination, 
+  g12$treatment,
+  cencode = 2
+  )
+ggcompetingrisks(
+  fit = cum_g12,
+  multiple_panels = FALSE,
+  xlab = "Days",
+  ylab = "Cumulative seed germination",
+  ylim = c(0, 1)
+  )
+g13 <- filter(germination, year == "2013")
+cum_g13 <- cuminc(
+  g13$day, 
+  g13$germination, 
+  g13$treatment,
+  cencode = 2
+  )
+ggcompetingrisks(
+  fit = cum_g13,
+  multiple_panels = FALSE,
+  xlab = "Days",
+  ylab = "Cumulative seed germination",
+  ylim = c(0, 1))
+```
+
+# Cure model
+A parametric mixture cure model is applied to compare probability survival curves per treatment by year.
+The analysis required the creation of survival objects, which are created using the surv function. A survival object consists of two columns:    
+- First column is the  time or censored time.\medskip
+- Second column is the censoring indicator, indicating right censored data.  
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+surv_cure12 <- flexsurvcure(
+  Surv(day, germination) ~ treatment, 
+  data = g12, link = "logistic", 
+  dist = "lnorm", 
+  mixture = T
+  )
+surv_cure12_null <- flexsurvcure(
+  Surv(day, germination) ~ 1, 
+  data = g12,
+  link = "logistic", 
+  dist = "lnorm", 
+  mixture = T
+  )
+mp_norm1 <- surv_cure12$loglik
+mp_norm0 <- surv_cure12_null$loglik
+chisq <- 2 * (mp_norm1 - mp_norm0)  
+chisq
+```
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+surv_cure13 <- flexsurvcure(
+  Surv(day, germination) ~ treatment, 
+  data = g13,
+  link = "logistic", 
+  dist = "lnorm", 
+  mixture = T
+  )
+surv_cure13_null <- flexsurvcure(
+  Surv(day, germination) ~ 1, 
+  data = g13,
+  link = "logistic", 
+  dist = "lnorm", 
+  mixture = T
+  )
+mp_norm1 <- surv_cure13$loglik
+mp_norm0 <- surv_cure13_null$loglik
+chisq <- 2 * (mp_norm1 - mp_norm0)  
+chisq
+```
+
+
+
+
