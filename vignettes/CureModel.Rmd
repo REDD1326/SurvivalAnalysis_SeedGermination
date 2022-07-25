@@ -12,14 +12,10 @@ library(cmprsk) # cuminc function
 library(survminer) # ggcompetingrisks function
 ```
 
-This document show how to analyze the **time to seed germination** using **Survival Analysis**. The data used here correspond to seeds of 38 plants of *Ipomoea hederacea* (Convolvulaceae) obtained after the aplication of the following experiments: 
-
-* Hand-self pollination: flowers were manually pollinated with pollen from the two longest anthers of the flower.\medskip
-* Hand-cross pollination: emasculated flowers were manually pollinated with pollen obtained from the two longest anthers of two-three donor plants.  
-
 # Data
-```{r echo=TRUE}
-germination <- read.table("../data/germination.csv", header = TRUE, sep = ",")
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+germination <- read.csv("https://zenodo.org/record/5091713/files/Germination_ID.csv?download=1")
 head(germination)
 ```
 
@@ -27,11 +23,11 @@ head(germination)
 
 ```{r}
 # Calculate the cumulative germination between treatments
-g12 <- filter(germination, year == "2012")
+g12 <- filter(germination, Year == "2012")
 cum_g12 <- cuminc(
-  g12$day, 
-  g12$germination, 
-  g12$treatment,
+  g12$G_Day, 
+  g12$Germination, 
+  g12$Treatment,
   cencode = 2
   )
 ggcompetingrisks(
@@ -41,11 +37,11 @@ ggcompetingrisks(
   ylab = "Cumulative seed germination",
   ylim = c(0, 1)
   )
-g13 <- filter(germination, year == "2013")
+g13 <- filter(germination, Year == "2013")
 cum_g13 <- cuminc(
-  g13$day, 
-  g13$germination, 
-  g13$treatment,
+  g13$G_Day, 
+  g13$Germination, 
+  g13$Treatment,
   cencode = 2
   )
 ggcompetingrisks(
@@ -64,13 +60,13 @@ The analysis required the creation of survival objects, which are created using 
 
 ```{r, echo=TRUE, message=FALSE, warning=FALSE}
 surv_cure12 <- flexsurvcure(
-  Surv(day, germination) ~ treatment, 
+  Surv(G_Day, Germination) ~ Treatment, 
   data = g12, link = "logistic", 
   dist = "lnorm", 
   mixture = T
   )
 surv_cure12_null <- flexsurvcure(
-  Surv(day, germination) ~ 1, 
+  Surv(G_Day, Germination) ~ 1, 
   data = g12,
   link = "logistic", 
   dist = "lnorm", 
@@ -84,14 +80,14 @@ chisq
 
 ```{r, echo=TRUE, message=FALSE, warning=FALSE}
 surv_cure13 <- flexsurvcure(
-  Surv(day, germination) ~ treatment, 
+  Surv(G_Day, Germination) ~ Treatment, 
   data = g13,
   link = "logistic", 
   dist = "lnorm", 
   mixture = T
   )
 surv_cure13_null <- flexsurvcure(
-  Surv(day, germination) ~ 1, 
+  Surv(G_Day, Germination) ~ 1, 
   data = g13,
   link = "logistic", 
   dist = "lnorm", 
