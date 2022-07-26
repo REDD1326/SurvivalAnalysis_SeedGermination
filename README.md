@@ -18,5 +18,6 @@ The complete data set of the study is available through [Zenodo](https://zenodo.
 
 ## Cure model
 
-The file [CureModel.Rmd](https://github.com/REDD1326/SurvivalAnalysis_SeedGermination/vignettes/CureModel.Rmd) shows how to fit a parametric Cure Model following [Onofri *et al*. 2011](https://www.researchgate.net/publication/216320776_The_cure_model_An_improved_way_to_describe_seed_germination), using the R package ```flexsurvcure``` (Amdahl, 2017). The file also shows how to plot the survival curves to graphical comparison between observed and predicted values. 
+The file [CureModel.Rmd](https://github.com/REDD1326/SurvivalAnalysis_SeedGermination/blob/main/vignettes/CureModel.Rmd)
+shows how to fit a parametric Cure Model following [Onofri *et al*. 2011](https://www.researchgate.net/publication/216320776_The_cure_model_An_improved_way_to_describe_seed_germination), using the R package ```flexsurvcure``` (Amdahl, 2017). The file also shows how to plot the survival curves to graphical comparison between observed and predicted values. 
 
