@@ -1,102 +1,219 @@
 ---
-title: "Survival Analysis"
+title: "Survival Analysis for seed germination"
 author: "Ruth Delgado-Dávila"
 output: html_document
 ---
+
+# Inbreeding Depression
+
+This analysis is part of the assessment of temporal variation in inbreeding depression in *Ipomoea hederacea* (see [Delgado-Dávila and Martén-Rodríguez, 2021](https://www.researchgate.net/publication/356285929_A_test_of_the_reproductive_assurance_hypothesis_in_Ipomoea_hederacea_does_inbreeding_depression_counteract_the_benefits_of_self-pollination) for details).
+
+* Plant population: Catemaco, Veracruz, Mexico - 18°24′N, 95°06′W, 340 m a.s.l.  
+
+* Study years: 2012-2013  
 
 ```{r warning=FALSE, include=FALSE}
 library(tidyverse)
 library(survival) # Surv function
 library(flexsurvcure) # flexsurvcure function
 library(cmprsk) # cuminc function
-library(survminer) # ggcompetingrisks function
 ```
 
-# Data
+## Data
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 germination <- read.csv("https://zenodo.org/record/5091713/files/Germination_ID.csv?download=1")
+germination$Year <- as.factor(germination$Year)
 head(germination)
+tail(germination)
 ```
 
-# Plotting cumulative incidence by treatment 
+### Selecting viable seeds 
 
-```{r}
-# Calculate the cumulative germination between treatments
-g12 <- filter(germination, Year == "2012")
-cum_g12 <- cuminc(
-  g12$G_Day, 
-  g12$Germination, 
-  g12$Treatment,
-  cencode = 2
-  )
-ggcompetingrisks(
-  fit = cum_g12,
-  multiple_panels = FALSE,
-  xlab = "Days",
-  ylab = "Cumulative seed germination",
-  ylim = c(0, 1)
-  )
-g13 <- filter(germination, Year == "2013")
-cum_g13 <- cuminc(
-  g13$G_Day, 
-  g13$Germination, 
-  g13$Treatment,
-  cencode = 2
-  )
-ggcompetingrisks(
-  fit = cum_g13,
-  multiple_panels = FALSE,
-  xlab = "Days",
-  ylab = "Cumulative seed germination",
-  ylim = c(0, 1))
+Next analysis only include viable seeds (seed weight > 12 g, see [Delgado-Dávila *et al.* 2016](https://www.researchgate.net/publication/308203245_Variation_in_floral_morphology_and_plant_reproductive_success_in_four_Ipomoea_species_Convolvulaceae_with_contrasting_breeding_systems)).  
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Viable Seeds
+viableSeeds <- germination %>% filter(S_Weight >= 11)
+summary(viableSeeds$S_Weight)
 ```
 
-# Cure model
+### Plotting germinated seeds 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Germinated Seeds Subset
+germinated <- filter(viableSeeds, Germination == 1)
+mycolors = viridis::cividis(2, begin = 0.3, end = 0.7)
+# plot median, minimum, and maximum of germinated seeds per year
+plot <- germinated %>% 
+  ggplot(aes(x = Treatment, y = G_Day, color = Treatment, fill = Treatment))
+plot <- plot + stat_summary(fun.ymin = min, 
+                            fun.ymax = max, 
+                            fun.y = "median", 
+                            shape = 21, 
+                            size = 1) 
+plot <- plot + facet_wrap(~ Year)
+plot <- plot + scale_color_manual(values = mycolors) 
+plot <- plot + scale_fill_manual(values = mycolors) 
+plot <- plot + coord_flip()
+plot <- plot + theme_light()
+plot <- plot + labs(
+  x = "pollination treatment", 
+  y = "days"
+)
+plot
+```
+
+## Cure Model 
+
 A parametric mixture cure model is applied to compare probability survival curves per treatment by year.
-The analysis required the creation of survival objects, which are created using the surv function. A survival object consists of two columns:    
-- First column is the  time or censored time.\medskip
-- Second column is the censoring indicator, indicating right censored data.  
+The analysis required the creation of survival objects, which are created using the ```Surv``` function. A survival object consists of two columns:  
 
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
-surv_cure12 <- flexsurvcure(
-  Surv(G_Day, Germination) ~ Treatment, 
-  data = g12, link = "logistic", 
-  dist = "lnorm", 
+* First column is the time or **censored time**.
+
+* Second column is the **censoring indicator**, indicating right censored data.  
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Cure model for year 2012
+g12 <- dplyr::filter(viableSeeds, Year == "2012")
+Surv_Cure12 <- flexsurvcure(
+  Surv(
+    G_Day, Germination
+    ) ~ Treatment, 
+  data = g12, 
+  link="logistic", 
+  dist="lnorm", 
   mixture = T
   )
-surv_cure12_null <- flexsurvcure(
-  Surv(G_Day, Germination) ~ 1, 
-  data = g12,
-  link = "logistic", 
-  dist = "lnorm", 
+# plot(Surv_Cure12)
+# Cure model for year 2013
+g13 <- dplyr::filter(viableSeeds, Year == "2013")
+Surv_Cure13 <- flexsurvcure(
+  Surv(
+    G_Day, Germination
+    ) ~ Treatment, 
+  data = g13, 
+  link="logistic", 
+  dist="lnorm", 
   mixture = T
   )
-mp_norm1 <- surv_cure12$loglik
-mp_norm0 <- surv_cure12_null$loglik
-chisq <- 2 * (mp_norm1 - mp_norm0)  
-chisq
+# plot(Surv_Cure13)
 ```
 
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
-surv_cure13 <- flexsurvcure(
-  Surv(G_Day, Germination) ~ Treatment, 
-  data = g13,
-  link = "logistic", 
-  dist = "lnorm", 
-  mixture = T
-  )
-surv_cure13_null <- flexsurvcure(
-  Surv(G_Day, Germination) ~ 1, 
-  data = g13,
-  link = "logistic", 
-  dist = "lnorm", 
-  mixture = T
-  )
-mp_norm1 <- surv_cure13$loglik
-mp_norm0 <- surv_cure13_null$loglik
-chisq <- 2 * (mp_norm1 - mp_norm0)  
-chisq
+
+## Plotting cumulative incidence by treatment 
+
+Cumulative Probability: shows the probability of germination at a given time, and it is defined as:  
+
+$$
+\begin{aligned}
+F(t) = 1 - S(t)
+\end{aligned}
+$$
+Where $S(t)$ is the survival function, indicating the probability of survive (not germinating) at a given time. 
+
+Following code lines show how to prepare seed data to plot the cumulative probability of germination.  
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+NewData <- viableSeeds %>% 
+  group_by(Year, Treatment) %>% 
+  mutate(Total = n()) %>%
+  ungroup()
+# Number of germinated seeds by treatment
+Count <- NewData %>% 
+  group_by(Year, Treatment, Total, G_Day) %>% 
+  summarise(sum(Germination)) %>%
+  ungroup()
+
+colnames(Count) <- c("Year", "Treatment", "Total", "Day", "Germ_seeds")
+head(Count)
+# Cumulative germination of seeds by treatment in 2012
+ACUM <- Count %>% 
+  group_by(Year, Treatment) %>% 
+  mutate(ACUM = cumsum(Germ_seeds)) %>% 
+  mutate(EVENT = ACUM/Total, KM = 1 - EVENT) %>%
+  ungroup()
+head(ACUM)
+```
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Plotting cumulative probability per year
+ACUM_12 <- ACUM %>% dplyr::filter(Year == "2012")
+plot(ACUM_12$Day, ACUM_12$EVENT, 
+     pch = c(19, 1)[as.numeric(as.factor(ACUM_12$Treatment))], 
+     cex = 1, 
+     axes = F,
+     xlim = c(0,122), 
+     ylim = c(0,1), 
+     ylab = "", 
+     xlab = "")
+par(mgp = c(axis.title.position = 1, axis.label.position = 0.8, axis.line.position = 0))
+axis(1, at = seq(0, 200, 15),labels = seq(0, 200, 15), cex.axis = 1, cex.lab = 0.7)
+par(mgp = c(axis.title.position = 1, axis.label.position = 0, axis.line.position = -1))
+axis(2, at = seq(0, 1, 0.2), las = 1, cex.axis = 1, labels = seq(0, 1, 0.2), cex.lab = 0.7)
+mtext("Cumulative Germination Probability", side = 2, line = 2, cex = 1)
+mtext("Time in days", side = 1, line = 2, cex = 1)
+# Add the estimate of time to event (germination) using Kaplan-Meier method 
+
+## Estimate of survival curve
+my.fit12 <- survfit(Surv(G_Day, Germination) ~ Treatment, data = g12)
+## use fun = 'event' in lines function to draw the event (1-survival probability)
+lines(my.fit12, fun = 'event', col = "black", lty = 3:2, lwd = 2)
+legend(70, 1, lty = 3:2, box.lty = 0, cex = 1, lwd = 1.2,
+       legend = c("Hand-self pollination", "Hand-cross pollination"))
+
+# Add the cure model lines to the graph
+## Save the probabilities estimated (1-est) by the Cure Model in a dataframe
+S12 <- summary(Surv_Cure12, t = seq(from = 0, to = 122, by = 5), type = "survival", tidy = T)
+NewS12 <- as.data.frame(S12 %>% mutate(EST = 1 - est))
+
+## Filter the estimates by year
+S_HSP12 <- NewS12 %>% filter(Treatment == "HSP")
+S_HCP12 <- NewS12 %>% filter(Treatment == "HCP")
+
+## Add lines to the graph
+lines(S_HSP12$time, S_HSP12$EST, type = "l")
+lines(S_HCP12$time, S_HCP12$EST, type = "l")
+```
+
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ACUM_13 <- ACUM %>% dplyr::filter(Year == "2013")
+plot(ACUM_13$Day, ACUM_13$EVENT, 
+     pch = c(19, 1)[as.numeric(as.factor(ACUM_13$Treatment))], 
+     cex = 2, 
+     axes = F,
+     xlim = c(0, 185), 
+     ylim = c(0, 1), ylab = "", xlab = "")
+par(mgp = c(axis.title.position = 0, axis.label.position = 0.9, axis.line.position = 0))
+axis(1,at = seq(0, 185, 10),labels = seq(0, 185, 10), cex.axis = 1, cex.lab = 0.7)
+par(mgp = c(axis.title.position = 0.1, axis.label.position = 0, axis.line.position = -1))
+axis(2, at = seq(0, 1, 0.2), las = 1, cex.axis = 1, labels = seq(0, 1, 0.2), cex.lab = 0.7)
+mtext("Cumulative Germination Probability", side = 2, line = 2, cex = 1)
+mtext("Time in days", side = 1, line = 2, cex = 1)
+
+# Add the estimate of time to event (germination) using Kaplan-Meier method
+## Estimate of survival curve
+my.fit13 <- survfit(Surv(G_Day, Germination) ~ Treatment, data = g13)
+## use fun = 'event' in lines function to draw the event (1-survival probability)
+lines(my.fit13, fun = 'event', col = "black", lty = 3:2, lwd = 2)
+legend(0.5, 0.97, lty = 3:2, box.lty = 0, cex = 0.8, lwd = 1.2,
+       legend = c("Hand-self pollination", "Hand-cross pollination"))
+
+# Add the cure model lines to the graph
+## Save the probabilities estimated (1-est) by the Cure Model in a dataframe
+
+S13 <- summary(Surv_Cure13, t = seq(from = 0, to = 185, by = 5), type = "survival", tidy = T)
+NewS13 <- as.data.frame(S13 %>% mutate(EST = 1-est))
+## Filter the estimates by year
+S_HSP13 <- NewS13 %>% filter(Treatment == "HSP")
+S_HCP13 <- NewS13 %>% filter(Treatment == "HCP")
+## Add lines to the graph
+lines(S_HSP13$time, S_HSP13$EST, type = "l")
+lines(S_HCP13$time, S_HCP13$EST, type = "l")
 ```
 
 
